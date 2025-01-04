@@ -11,7 +11,7 @@ def index():
 
 @app.route('/api/data', methods=['GET'])
 def get_data():
-    folder_path = 'C:/Users/amnam/Desktop/project/excel_data/'  # Update with your actual path
+    folder_path = 'excel_data/'  # Update with your actual path
     file_pattern = os.path.join(folder_path, 'tag_log_*.xlsx')
 
     all_files = glob(file_pattern)
