@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Product Interaction Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div class="dashboard-container">
+        <div class="chart-wrapper">
+            <canvas id="mostInteractedChart" class="chart"></canvas>
+        </div>
+        <div class="chart-wrapper">
+            <canvas id="mostViewedChart" class="chart"></canvas>
+        </div>
+        <div class="chart-wrapper">
+            <canvas id="dailyInteractionChart" class="chart"></canvas>
+        </div>
+    </div>
+
+    <script>
+        fetch('/api/data')
+            .then(response => response.json())
+            .then(data => {
+                const productInteraction = {};
+                const productViewCounts = {};
+                const dailyInteractions = {};
+
+                let previousRow = null;
+
+                data.forEach(row => {
+                    const timestamp = new Date(row.Timestamp);
+                    const product = row['Video Played'];
+
+                    if (previousRow && previousRow['Tag ID'] === row['Tag ID']) {
+                        const interactionTime = (timestamp - new Date(previousRow.Timestamp)) / 1000;
+                        if (!productInteraction[product]) {
+                            productInteraction[product] = 0;
+                        }
+                        productInteraction[product] += interactionTime;
+                    }
+
+                    if (!productViewCounts[product]) {
+                        productViewCounts[product] = 0;
+                    }
+                    productViewCounts[product]++;
+
+                    const date = timestamp.toLocaleDateString();
+                    if (!dailyInteractions[date]) {
+                        dailyInteractions[date] = {};
+                    }
+                    if (!dailyInteractions[date][product]) {
+                        dailyInteractions[date][product] = 0;
+                    }
+                    dailyInteractions[date][product]++;
+
+                    previousRow = row;
+                });
+
+                // Chart: Most Interacted Products
+                const interactedLabels = Object.keys(productInteraction);
+                const interactedData = Object.values(productInteraction);
+                const mostInteractedCtx = document.getElementById('mostInteractedChart').getContext('2d');
+                new Chart(mostInteractedCtx, {
+                    type: 'bar',
+                    data: {
+                        labels: interactedLabels,
+                        datasets: [{
+                            label: 'Total Interaction Time (seconds)',
+                            data: interactedData,
+                            backgroundColor: 'rgba(54, 162, 235, 0.5)',
+                            borderColor: 'rgba(54, 162, 235, 1)',
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        scales: {
+                            x: { title: { display: true, text: 'Product' } },
+                            y: { title: { display: true, text: 'Interaction Time (seconds)' }, beginAtZero: true }
+                        }
+                    }
+                });
+
+                // Chart: Most Viewed Products
+                const viewedLabels = Object.keys(productViewCounts);
+                const viewedData = Object.values(productViewCounts);
+                const mostViewedCtx = document.getElementById('mostViewedChart').getContext('2d');
+                new Chart(mostViewedCtx, {
+                    type: 'pie',
+                    data: {
+                        labels: viewedLabels,
+                        datasets: [{
+                            label: 'View Count',
+                            data: viewedData,
+                            backgroundColor: viewedLabels.map(() => `rgba(${Math.random() * 255}, ${Math.random() * 255}, ${Math.random() * 255}, 0.5)`),
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        responsive: true
+                    }
+                });
+
+                // Chart: Daily Interactions
+                const dailyLabels = Object.keys(dailyInteractions);
+                const dailyDatasets = Object.keys(productInteraction).map(product => {
+                    return {
+                        label: product,
+                        data: dailyLabels.map(date => dailyInteractions[date][product] || 0),
+                        backgroundColor: `rgba(${Math.random() * 255}, ${Math.random() * 255}, ${Math.random() * 255}, 0.5)`
+                    };
+                });
+                const dailyInteractionCtx = document.getElementById('dailyInteractionChart').getContext('2d');
+                new Chart(dailyInteractionCtx, {
+                    type: 'bar',
+                    data: {
+                        labels: dailyLabels,
+                        datasets: dailyDatasets
+                    },
+                    options: {
+                        responsive: true,
+                        scales: {
+                            x: { title: { display: true, text: 'Date' } },
+                            y: { title: { display: true, text: 'Interaction Count' }, beginAtZero: true }
+                        }
+                    }
+                });
+            })
+            .catch(error => console.error('Error fetching data:', error));
+    </script>
+</body>
+</html>
