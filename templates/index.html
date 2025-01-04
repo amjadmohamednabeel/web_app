@@ -1,133 +1,277 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Product Interaction Dashboard</title>
+    <title>Video Engagement Dashboard</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="/static/style.css">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            position: relative;
+        }
+        .logo {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            height: 50px; /* Adjust height as needed */
+        }
+        .dashboard-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            grid-template-rows: auto auto auto;
+            gap: 20px;
+            padding: 80px 20px 20px; /* Padding to avoid overlapping with the logo */
+        }
+        .chart-wrapper {
+            border: 2px solid #ccc; /* Border around each chart */
+            border-radius: 8px; /* Rounded corners */
+            padding: 10px;
+            background-color: #f9f9f9; /* Light background for contrast */
+        }
+        .chart {
+            width: 100%;
+            height: 400px;
+        }
+        .full-width {
+            grid-column: 1 / 3;
+        }
+    </style>
 </head>
 <body>
+    <div class="logo-container">
+        <img src="/static/images/logo.png" alt="Logo" class="logo">
+    </div>
+    <h1 class="dashboard-title">Video Engagement Dashboard</h1>
     <div class="dashboard-container">
         <div class="chart-wrapper">
-            <canvas id="mostInteractedChart" class="chart"></canvas>
+            <canvas id="lineChart" class="chart"></canvas>
         </div>
         <div class="chart-wrapper">
-            <canvas id="mostViewedChart" class="chart"></canvas>
+            <canvas id="barChart" class="chart"></canvas>
         </div>
         <div class="chart-wrapper">
-            <canvas id="dailyInteractionChart" class="chart"></canvas>
+            <canvas id="engagementChart" class="chart"></canvas>
+        </div>
+        <div class="chart-wrapper">
+            <canvas id="dailyEngagementChart" class="chart"></canvas>
+        </div>
+        <div class="chart-wrapper full-width">
+            <canvas id="dailyProductEngagementChart" class="chart"></canvas>
         </div>
     </div>
-
+    
     <script>
-        fetch('/api/data')
-            .then(response => response.json())
-            .then(data => {
-                const productInteraction = {};
-                const productViewCounts = {};
-                const dailyInteractions = {};
+        function parseTimestamp(timestamp) {
+            return new Date(timestamp);
+        }
 
-                let previousRow = null;
+        fetch('/api/data')
+            .then(response => {
+                if (!response.ok) throw new Error('Network response was not ok');
+                return response.json();
+            })
+            .then(data => {
+                const videoPlayCounts = {};
+                const dates = [];
+                const engagementTimes = {};
+                const dailyEngagement = {};
+                const dailyProductEngagement = {};
+
+                let previousEntry = null;
 
                 data.forEach(row => {
-                    const timestamp = new Date(row.Timestamp);
-                    const product = row['Video Played'];
+                    const date = new Date(row.Timestamp).toLocaleDateString();
+                    const video = row['Video Played'];
+                    const timestamp = parseTimestamp(row.Timestamp);
 
-                    if (previousRow && previousRow['Tag ID'] === row['Tag ID']) {
-                        const interactionTime = (timestamp - new Date(previousRow.Timestamp)) / 1000;
-                        if (!productInteraction[product]) {
-                            productInteraction[product] = 0;
+                    // Populate video play counts by date
+                    if (!videoPlayCounts[video]) {
+                        videoPlayCounts[video] = {};
+                    }
+                    if (!videoPlayCounts[video][date]) {
+                        videoPlayCounts[video][date] = 0;
+                    }
+                    videoPlayCounts[video][date]++;
+                    if (!dates.includes(date)) {
+                        dates.push(date);
+                    }
+
+                    // Calculate engagement times for specific product videos
+                    if (previousEntry) {
+                        const timeDiff = (timestamp - parseTimestamp(previousEntry.Timestamp)) / 1000; // in seconds
+                        if (previousEntry['Video Played'] === "Home Page" && video.includes("RON")) {
+                            const healthVideo = video.replace(".mp4", "");
+                            if (!engagementTimes[healthVideo]) {
+                                engagementTimes[healthVideo] = [];
+                            }
+                            engagementTimes[healthVideo].push(timeDiff);
+                            
+                            // Calculate daily engagement time for each product
+                            if (!dailyProductEngagement[date]) {
+                                dailyProductEngagement[date] = {};
+                            }
+                            if (!dailyProductEngagement[date][healthVideo]) {
+                                dailyProductEngagement[date][healthVideo] = [];
+                            }
+                            dailyProductEngagement[date][healthVideo].push(timeDiff);
+                            
+                            // Calculate daily engagement time
+                            if (!dailyEngagement[date]) {
+                                dailyEngagement[date] = [];
+                            }
+                            dailyEngagement[date].push(timeDiff);
                         }
-                        productInteraction[product] += interactionTime;
                     }
-
-                    if (!productViewCounts[product]) {
-                        productViewCounts[product] = 0;
-                    }
-                    productViewCounts[product]++;
-
-                    const date = timestamp.toLocaleDateString();
-                    if (!dailyInteractions[date]) {
-                        dailyInteractions[date] = {};
-                    }
-                    if (!dailyInteractions[date][product]) {
-                        dailyInteractions[date][product] = 0;
-                    }
-                    dailyInteractions[date][product]++;
-
-                    previousRow = row;
+                    previousEntry = row;
                 });
 
-                // Chart: Most Interacted Products
-                const interactedLabels = Object.keys(productInteraction);
-                const interactedData = Object.values(productInteraction);
-                const mostInteractedCtx = document.getElementById('mostInteractedChart').getContext('2d');
-                new Chart(mostInteractedCtx, {
+                // Prepare data for Chart 1 (Line Chart)
+                const lineChartDatasets = [];
+                for (const video in videoPlayCounts) {
+                    lineChartDatasets.push({
+                        label: video,
+                        data: dates.map(date => videoPlayCounts[video][date] || 0),
+                        borderColor: getRandomColor(),
+                        backgroundColor: getRandomColor(0.2),
+                        fill: false,
+                    });
+                }
+
+                const lineCtx = document.getElementById('lineChart').getContext('2d');
+                new Chart(lineCtx, {
+                    type: 'line',
+                    data: {
+                        labels: dates.sort(),
+                        datasets: lineChartDatasets,
+                    },
+                    options: {
+                        responsive: true,
+                        scales: {
+                            x: { title: { display: true, text: 'Date' }},
+                            y: { title: { display: true, text: 'Number of Plays' }, beginAtZero: true }
+                        }
+                    }
+                });
+
+                // Prepare data for Chart 2 (Bar Chart)
+                const barChartDatasets = [];
+                for (const video in videoPlayCounts) {
+                    barChartDatasets.push({
+                        label: video,
+                        data: dates.map(date => videoPlayCounts[video][date] || 0),
+                        backgroundColor: getRandomColor(0.5),
+                        borderColor: getRandomColor(1),
+                        borderWidth: 1
+                    });
+                }
+
+                const barCtx = document.getElementById('barChart').getContext('2d');
+                new Chart(barCtx, {
                     type: 'bar',
                     data: {
-                        labels: interactedLabels,
+                        labels: dates.sort(),
+                        datasets: barChartDatasets
+                    },
+                    options: {
+                        responsive: true,
+                        scales: {
+                            x: { title: { display: true, text: 'Date' }, stacked: true },
+                            y: { title: { display: true, text: 'Number of Plays' }, beginAtZero: true, stacked: true }
+                        }
+                    }
+                });
+
+                // Prepare data for Chart 3 (Engagement Time per Product)
+                const engagementLabels = Object.keys(engagementTimes);
+                const engagementData = engagementLabels.map(label => {
+                    const times = engagementTimes[label];
+                    return times.reduce((sum, time) => sum + time, 0) / times.length || 0; // Average time
+                });
+
+                const engagementCtx = document.getElementById('engagementChart').getContext('2d');
+                new Chart(engagementCtx, {
+                    type: 'bar',
+                    data: {
+                        labels: engagementLabels,
                         datasets: [{
-                            label: 'Total Interaction Time (seconds)',
-                            data: interactedData,
-                            backgroundColor: 'rgba(54, 162, 235, 0.5)',
-                            borderColor: 'rgba(54, 162, 235, 1)',
+                            label: 'Average Engagement Time (seconds)',
+                            data: engagementData,
+                            backgroundColor: getRandomColor(0.6),
+                            borderColor: getRandomColor(),
                             borderWidth: 1
                         }]
                     },
                     options: {
                         responsive: true,
                         scales: {
-                            x: { title: { display: true, text: 'Product' } },
-                            y: { title: { display: true, text: 'Interaction Time (seconds)' }, beginAtZero: true }
+                            x: { title: { display: true, text: 'Health Product' }},
+                            y: { title: { display: true, text: 'Average Engagement Time (seconds)' }, beginAtZero: true }
                         }
                     }
                 });
 
-                // Chart: Most Viewed Products
-                const viewedLabels = Object.keys(productViewCounts);
-                const viewedData = Object.values(productViewCounts);
-                const mostViewedCtx = document.getElementById('mostViewedChart').getContext('2d');
-                new Chart(mostViewedCtx, {
-                    type: 'pie',
-                    data: {
-                        labels: viewedLabels,
-                        datasets: [{
-                            label: 'View Count',
-                            data: viewedData,
-                            backgroundColor: viewedLabels.map(() => `rgba(${Math.random() * 255}, ${Math.random() * 255}, ${Math.random() * 255}, 0.5)`),
-                            borderWidth: 1
-                        }]
-                    },
-                    options: {
-                        responsive: true
-                    }
+                // Prepare data for Chart 4 (Average Daily Engagement Time)
+                const dailyLabels = Object.keys(dailyEngagement);
+                const dailyData = dailyLabels.map(label => {
+                    const times = dailyEngagement[label];
+                    return times.reduce((sum, time) => sum + time, 0) / times.length || 0; // Average daily time
                 });
 
-                // Chart: Daily Interactions
-                const dailyLabels = Object.keys(dailyInteractions);
-                const dailyDatasets = Object.keys(productInteraction).map(product => {
-                    return {
-                        label: product,
-                        data: dailyLabels.map(date => dailyInteractions[date][product] || 0),
-                        backgroundColor: `rgba(${Math.random() * 255}, ${Math.random() * 255}, ${Math.random() * 255}, 0.5)`
-                    };
-                });
-                const dailyInteractionCtx = document.getElementById('dailyInteractionChart').getContext('2d');
-                new Chart(dailyInteractionCtx, {
+                const dailyEngagementCtx = document.getElementById('dailyEngagementChart').getContext('2d');
+                new Chart(dailyEngagementCtx, {
                     type: 'bar',
                     data: {
                         labels: dailyLabels,
-                        datasets: dailyDatasets
+                        datasets: [{
+                            label: 'Average Daily Engagement Time (seconds)',
+                            data: dailyData,
+                            backgroundColor: getRandomColor(0.6),
+                            borderColor: getRandomColor(),
+                            borderWidth: 1
+                        }]
+                    }
+                });
+
+                // Prepare data for Chart 5 (Daily Product Engagement)
+                const dailyProductLabels = Object.keys(dailyProductEngagement);
+                const dailyProductDatasets = Object.keys(engagementTimes).map(product => {
+                    return {
+                        label: product,
+                        data: dailyProductLabels.map(date => {
+                            const times = dailyProductEngagement[date][product] || [];
+                            return times.reduce((sum, time) => sum + time, 0) / (times.length || 1);
+                        }),
+                        backgroundColor: getRandomColor(0.5),
+                        borderColor: getRandomColor(),
+                        borderWidth: 1
+                    };
+                });
+
+                const dailyProductEngagementCtx = document.getElementById('dailyProductEngagementChart').getContext('2d');
+                new Chart(dailyProductEngagementCtx, {
+                    type: 'bar',
+                    data: {
+                        labels: dailyProductLabels,
+                        datasets: dailyProductDatasets
                     },
                     options: {
                         responsive: true,
                         scales: {
-                            x: { title: { display: true, text: 'Date' } },
-                            y: { title: { display: true, text: 'Interaction Count' }, beginAtZero: true }
+                            x: { title: { display: true, text: 'Date' }},
+                            y: { title: { display: true, text: 'Average Engagement Time (seconds)' }, beginAtZero: true }
                         }
                     }
                 });
+
+                // Random color generator function
+                function getRandomColor(opacity = 1) {
+                    return `rgba(${Math.floor(Math.random() * 255)}, ${Math.floor(Math.random() * 255)}, ${Math.floor(Math.random() * 255)}, ${opacity})`;
+                }
             })
             .catch(error => console.error('Error fetching data:', error));
     </script>
