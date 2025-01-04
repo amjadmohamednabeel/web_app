@@ -21,8 +21,8 @@ def get_data():
     df_list = [pd.read_excel(file) for file in all_files]
     df = pd.concat(df_list, ignore_index=True)
 
-    # Convert 'Timestamp' to datetime and ensure 'Date' is a string
-    df['Timestamp'] = pd.to_datetime(df['Timestamp'], format='mixed')
+    # Convert 'Timestamp' to datetime without specifying a format
+    df['Timestamp'] = pd.to_datetime(df['Timestamp'])
     df['Date'] = df['Timestamp'].dt.date.astype(str)  # Convert date to string
 
     # Convert DataFrame to JSON
