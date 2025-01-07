@@ -23,12 +23,12 @@ def get_data():
 
     # Standardize the 'Timestamp' column
     def parse_timestamp(timestamp):
+    try:
+        # First try parsing with milliseconds (comma-separated)
+        return pd.to_datetime(timestamp, format='%Y-%m-%d %H:%M:%S,%f')
+    except ValueError:
         try:
-            # First try parsing with milliseconds
-            return pd.to_datetime(timestamp, format='%Y-%m-%d %H:%M:%S,%f')
-        except ValueError:
-            try:
-            # second try parsing with milliseconds
+            # Second try parsing with milliseconds (dot-separated)
             return pd.to_datetime(timestamp, format='%Y-%m-%d %H:%M:%S.%f')
         except ValueError:
             try:
