@@ -1,111 +1,58 @@
-/* General Styles */
 body {
     font-family: 'Roboto', Arial, sans-serif;
-    background-color: #f4f7fc; /* Light gray background for a professional look */
+    background-color: #f4f7fc;
     margin: 0;
     padding: 0;
-    color: #333; /* Dark gray text for better readability */
+    color: #333;
 }
 
-/* Logo Styling */
 .logo-container {
     position: absolute;
     top: 10px;
     left: 10px;
-    height: 100px; /* Adjust height as needed */
-    width: 150px; /* Adjust width based on logo dimensions */
-    background-color: rgba(0, 0, 0, 0.4); /* Semi-transparent black background */
-    border-radius: 8px; /* Rounded corners for a modern look */
+    height: 100px;
+    width: 150px;
+    background-color: rgba(0, 0, 0, 0.4);
+    border-radius: 8px;
     display: flex;
     justify-content: center;
-    align-items:center;
-    padding: 5px; /* Padding for spacing around the logo */
-    z-index: 1000; /* Ensure it stays on top */
+    align-items: center;
+    padding: 5px;
+    z-index: 1000;
 }
 
 .logo {
-    height: 100%; /* Ensure the logo fits the container */
-    max-width: 100%; /* Maintain aspect ratio */
+    height: 100%;
+    max-width: 100%;
     object-fit: contain;
 }
 
-
-/* Dashboard Container */
 .dashboard-container {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); /* Responsive grid layout */
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
     gap: 20px;
-    padding: 100px 20px 20px; /* Padding for proper spacing */
+    padding: 100px 20px 20px;
 }
 
-/* Chart Wrapper */
 .chart-wrapper {
-    border: 1px solid #e1e4eb; /* Subtle border */
-    border-radius: 8px; /* Rounded corners for a modern look */
+    border: 1px solid #e1e4eb;
+    border-radius: 8px;
     padding: 15px;
-    background: #fff; /* White background for better contrast */
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); /* Subtle shadow for depth */
+    background: #fff;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
     transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
-/* Hover Effects for Chart Wrapper */
 .chart-wrapper:hover {
-    transform: translateY(-5px); /* Slight lift effect on hover */
-    box-shadow: 0 8px 15px rgba(0, 0, 0, 0.2); /* Enhanced shadow on hover */
+    transform: translateY(-5px);
+    box-shadow: 0 8px 15px rgba(0, 0, 0, 0.2);
 }
 
-/* Chart Dimensions */
 .chart {
     width: 100%;
-    height: 300px; /* Consistent height for all charts */
+    height: 300px;
 }
 
-/* Full-Width Chart */
 .full-width {
-    grid-column: 1 / -1; /* Span all columns */
-}
-
-/* Typography */
-h1, h2, h3, h4, h5, h6 {
-    margin: 0;
-    color: #444; /* Slightly lighter gray for headings */
-}
-
-/* Main Title Styling */
-h1 {
-    font-size: 1.8rem;
-    text-align: center;
-    margin-bottom: 20px;
-    color: #222; /* Slightly darker gray for main titles */
-}
-
-/* Responsive Design */
-@media (max-width: 768px) {
-    .dashboard-container {
-        padding: 80px 10px; /* Adjust padding for smaller screens */
-        gap: 15px; /* Reduce gap between cards */
-    }
-
-    .chart-wrapper {
-        padding: 10px;
-    }
-
-    .chart {
-        height: 250px; /* Reduce chart height for smaller devices */
-    }
-}
-
-@media (max-width: 480px) {
-    .logo {
-        height: 40px; /* Smaller logo for tiny devices */
-    }
-
-    .dashboard-container {
-        grid-template-columns: 1fr; /* Single column layout for narrow screens */
-    }
-}
-
-/* Smooth Scrolling */
-html {
-    scroll-behavior: smooth;
+    grid-column: 1 / -1;
 }
