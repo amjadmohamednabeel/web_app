@@ -28,6 +28,10 @@ def get_data():
             return pd.to_datetime(timestamp, format='%Y-%m-%d %H:%M:%S,%f')
         except ValueError:
             try:
+            # second try parsing with milliseconds
+            return pd.to_datetime(timestamp, format='%Y-%m-%d %H:%M:%S.%f')
+        except ValueError:
+            try:
                 # Fall back to seconds-only format
                 return pd.to_datetime(timestamp, format='%Y-%m-%d %H:%M:%S')
             except ValueError:
