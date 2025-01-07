@@ -7,21 +7,37 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link rel="stylesheet" href="/static/style.css">
     <style>
-        /* Add some basic styles for the loading indicator */
-        .loading {
-            display: none;
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            font-size: 2em;
-            color: #000;
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            position: relative;
         }
-        .error-message {
-            display: none;
-            color: red;
-            text-align: center;
-            font-size: 1.2em;
+        .logo {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            height: 50px; /* Adjust height as needed */
+        }
+        .dashboard-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            grid-template-rows: auto auto auto;
+            gap: 20px;
+            padding: 80px 20px 20px; /* Padding to avoid overlapping with the logo */
+        }
+        .chart-wrapper {
+            border: 2px solid #ccc; /* Border around each chart */
+            border-radius: 8px; /* Rounded corners */
+            padding: 10px;
+            background-color: #f9f9f9; /* Light background for contrast */
+        }
+        .chart {
+            width: 100%;
+            height: 400px;
+        }
+        .full-width {
+            grid-column: 1 / 3;
         }
     </style>
 </head>
@@ -30,11 +46,6 @@
         <img src="/static/images/logo.png" alt="Logo" class="logo">
     </div>
     <h1 class="dashboard-title">Video Engagement Dashboard</h1>
-
-    <!-- Loading and error handling -->
-    <div class="loading" id="loadingIndicator">Loading...</div>
-    <div class="error-message" id="errorMessage">Error loading data. Please try again later.</div>
-
     <div class="dashboard-container">
         <div class="chart-wrapper">
             <canvas id="lineChart" class="chart"></canvas>
@@ -52,18 +63,17 @@
             <canvas id="dailyProductEngagementChart" class="chart"></canvas>
         </div>
     </div>
-
+    
     <script>
         function parseTimestamp(timestamp) {
             return new Date(timestamp);
         }
 
-        function getRandomColor(opacity = 1) {
-            return `rgba(${Math.random() * 255}, ${Math.random() * 255}, ${Math.random() * 255}, ${opacity})`;
-        }
-
         fetch('/api/data')
-            .then(response => response.json())
+            .then(response => {
+                if (!response.ok) throw new Error('Network response was not ok');
+                return response.json();
+            })
             .then(data => {
                 const videoPlayCounts = {};
                 const dates = [];
@@ -78,170 +88,191 @@
                     const video = row['Video Played'];
                     const timestamp = parseTimestamp(row.Timestamp);
 
-                    if (!videoPlayCounts[video]) videoPlayCounts[video] = {};
-                    if (!videoPlayCounts[video][date]) videoPlayCounts[video][date] = 0;
+                    // Populate video play counts by date
+                    if (!videoPlayCounts[video]) {
+                        videoPlayCounts[video] = {};
+                    }
+                    if (!videoPlayCounts[video][date]) {
+                        videoPlayCounts[video][date] = 0;
+                    }
                     videoPlayCounts[video][date]++;
-                    if (!dates.includes(date)) dates.push(date);
+                    if (!dates.includes(date)) {
+                        dates.push(date);
+                    }
 
+                    // Calculate engagement times for specific product videos
                     if (previousEntry) {
-                        const timeDiff = (timestamp - parseTimestamp(previousEntry.Timestamp)) / 1000;
+                        const timeDiff = (timestamp - parseTimestamp(previousEntry.Timestamp)) / 1000; // in seconds
                         if (previousEntry['Video Played'] === "Home Page" && video.includes("RON")) {
                             const healthVideo = video.replace(".mp4", "");
-                            if (!engagementTimes[healthVideo]) engagementTimes[healthVideo] = [];
+                            if (!engagementTimes[healthVideo]) {
+                                engagementTimes[healthVideo] = [];
+                            }
                             engagementTimes[healthVideo].push(timeDiff);
-
-                            if (!dailyProductEngagement[date]) dailyProductEngagement[date] = {};
-                            if (!dailyProductEngagement[date][healthVideo]) dailyProductEngagement[date][healthVideo] = [];
+                            
+                            // Calculate daily engagement time for each product
+                            if (!dailyProductEngagement[date]) {
+                                dailyProductEngagement[date] = {};
+                            }
+                            if (!dailyProductEngagement[date][healthVideo]) {
+                                dailyProductEngagement[date][healthVideo] = [];
+                            }
                             dailyProductEngagement[date][healthVideo].push(timeDiff);
-
-                            if (!dailyEngagement[date]) dailyEngagement[date] = [];
+                            
+                            // Calculate daily engagement time
+                            if (!dailyEngagement[date]) {
+                                dailyEngagement[date] = [];
+                            }
                             dailyEngagement[date].push(timeDiff);
                         }
                     }
                     previousEntry = row;
                 });
 
-                // Show charts after data is processed
-                document.getElementById('loadingIndicator').style.display = 'none';
+                // Prepare data for Chart 1 (Line Chart)
+                const lineChartDatasets = [];
+                for (const video in videoPlayCounts) {
+                    lineChartDatasets.push({
+                        label: video,
+                        data: dates.map(date => videoPlayCounts[video][date] || 0),
+                        borderColor: getRandomColor(),
+                        backgroundColor: getRandomColor(0.2),
+                        fill: false,
+                    });
+                }
 
-                // Line Chart: Video Plays Over Time
                 const lineCtx = document.getElementById('lineChart').getContext('2d');
                 new Chart(lineCtx, {
                     type: 'line',
                     data: {
                         labels: dates.sort(),
-                        datasets: Object.keys(videoPlayCounts).map(video => ({
-                            label: video,
-                            data: dates.map(date => videoPlayCounts[video][date] || 0),
-                            borderColor: getRandomColor(),
-                            fill: false
-                        }))
+                        datasets: lineChartDatasets,
+                    },
+                    options: {
+                        responsive: true,
+                        scales: {
+                            x: { title: { display: true, text: 'Date' }},
+                            y: { title: { display: true, text: 'Number of Plays' }, beginAtZero: true }
+                        }
                     }
                 });
 
-                // Bar Chart: Total Plays Per Video
+                // Prepare data for Chart 2 (Bar Chart)
+                const barChartDatasets = [];
+                for (const video in videoPlayCounts) {
+                    barChartDatasets.push({
+                        label: video,
+                        data: dates.map(date => videoPlayCounts[video][date] || 0),
+                        backgroundColor: getRandomColor(0.5),
+                        borderColor: getRandomColor(1),
+                        borderWidth: 1
+                    });
+                }
+
                 const barCtx = document.getElementById('barChart').getContext('2d');
                 new Chart(barCtx, {
                     type: 'bar',
                     data: {
-                        labels: Object.keys(videoPlayCounts),
-                        datasets: [
-                            {
-                                label: 'Total Plays',
-                                data: Object.keys(videoPlayCounts).map(video =>
-                                    Object.values(videoPlayCounts[video]).reduce((a, b) => a + b, 0)
-                                ),
-                                backgroundColor: Object.keys(videoPlayCounts).map(() => getRandomColor(0.7)),
-                                borderColor: Object.keys(videoPlayCounts).map(() => getRandomColor()),
-                                borderWidth: 1,
-                            },
-                        ],
+                        labels: dates.sort(),
+                        datasets: barChartDatasets
                     },
                     options: {
                         responsive: true,
-                        plugins: {
-                            legend: { display: true },
-                            title: { display: true, text: 'Total Plays Per Video' },
-                        },
-                    },
+                        scales: {
+                            x: { title: { display: true, text: 'Date' }, stacked: true },
+                            y: { title: { display: true, text: 'Number of Plays' }, beginAtZero: true, stacked: true }
+                        }
+                    }
                 });
 
-                // Pie Chart: Engagement Times by Video
+                // Prepare data for Chart 3 (Engagement Time per Product)
+                const engagementLabels = Object.keys(engagementTimes);
+                const engagementData = engagementLabels.map(label => {
+                    const times = engagementTimes[label];
+                    return times.reduce((sum, time) => sum + time, 0) / times.length || 0; // Average time
+                });
+
                 const engagementCtx = document.getElementById('engagementChart').getContext('2d');
                 new Chart(engagementCtx, {
-                    type: 'pie',
+                    type: 'bar',
                     data: {
-                        labels: Object.keys(engagementTimes),
-                        datasets: [
-                            {
-                                data: Object.keys(engagementTimes).map(video =>
-                                    Math.round(engagementTimes[video].reduce((a, b) => a + b, 0))
-                                ),
-                                backgroundColor: Object.keys(engagementTimes).map(() => getRandomColor(0.7)),
-                                borderColor: Object.keys(engagementTimes).map(() => getRandomColor(1)),
-                                borderWidth: 1,
-                            },
-                        ],
+                        labels: engagementLabels,
+                        datasets: [{
+                            label: 'Average Engagement Time (seconds)',
+                            data: engagementData,
+                            backgroundColor: getRandomColor(0.6),
+                            borderColor: getRandomColor(),
+                            borderWidth: 1
+                        }]
                     },
                     options: {
                         responsive: true,
-                        plugins: {
-                            legend: { position: 'top' },
-                            title: { display: true, text: 'Engagement Times by Video (Seconds)' },
-                        },
-                    },
+                        scales: {
+                            x: { title: { display: true, text: 'Health Product' }},
+                            y: { title: { display: true, text: 'Average Engagement Time (seconds)' }, beginAtZero: true }
+                        }
+                    }
                 });
 
-                // Line Chart: Daily Engagement Times
+                // Prepare data for Chart 4 (Average Daily Engagement Time)
+                const dailyLabels = Object.keys(dailyEngagement);
+                const dailyData = dailyLabels.map(label => {
+                    const times = dailyEngagement[label];
+                    return times.reduce((sum, time) => sum + time, 0) / times.length || 0; // Average daily time
+                });
+
                 const dailyEngagementCtx = document.getElementById('dailyEngagementChart').getContext('2d');
                 new Chart(dailyEngagementCtx, {
-                    type: 'line',
+                    type: 'bar',
                     data: {
-                        labels: Object.keys(dailyEngagement).sort(),
-                        datasets: [
-                            {
-                                label: 'Daily Engagement Time',
-                                data: Object.keys(dailyEngagement)
-                                    .sort()
-                                    .map(date => dailyEngagement[date].reduce((a, b) => a + b, 0)),
-                                borderColor: getRandomColor(),
-                                fill: true,
-                                backgroundColor: getRandomColor(0.2),
-                            },
-                        ],
-                    },
-                    options: {
-                        responsive: true,
-                        plugins: {
-                            legend: { display: true },
-                            title: { display: true, text: 'Total Daily Engagement Time (Seconds)' },
-                        },
-                        scales: {
-                            y: { beginAtZero: true },
-                        },
-                    },
+                        labels: dailyLabels,
+                        datasets: [{
+                            label: 'Average Daily Engagement Time (seconds)',
+                            data: dailyData,
+                            backgroundColor: getRandomColor(0.6),
+                            borderColor: getRandomColor(),
+                            borderWidth: 1
+                        }]
+                    }
                 });
 
-                // Stacked Bar Chart: Daily Product Engagement Times
-                const dailyProductEngagementCtx = document
-                    .getElementById('dailyProductEngagementChart')
-                    .getContext('2d');
+                // Prepare data for Chart 5 (Daily Product Engagement)
+                const dailyProductLabels = Object.keys(dailyProductEngagement);
+                const dailyProductDatasets = Object.keys(engagementTimes).map(product => {
+                    return {
+                        label: product,
+                        data: dailyProductLabels.map(date => {
+                            const times = dailyProductEngagement[date][product] || [];
+                            return times.reduce((sum, time) => sum + time, 0) / (times.length || 1);
+                        }),
+                        backgroundColor: getRandomColor(0.5),
+                        borderColor: getRandomColor(),
+                        borderWidth: 1
+                    };
+                });
+
+                const dailyProductEngagementCtx = document.getElementById('dailyProductEngagementChart').getContext('2d');
                 new Chart(dailyProductEngagementCtx, {
                     type: 'bar',
                     data: {
-                        labels: Object.keys(dailyProductEngagement).sort(),
-                        datasets: Object.keys(engagementTimes).map(video => ({
-                            label: video,
-                            data: Object.keys(dailyProductEngagement)
-                                .sort()
-                                .map(date =>
-                                    dailyProductEngagement[date][video]
-                                        ? dailyProductEngagement[date][video].reduce((a, b) => a + b, 0)
-                                        : 0
-                                ),
-                            backgroundColor: getRandomColor(0.7),
-                            borderColor: getRandomColor(1),
-                            borderWidth: 1,
-                        })),
+                        labels: dailyProductLabels,
+                        datasets: dailyProductDatasets
                     },
                     options: {
                         responsive: true,
-                        plugins: {
-                            legend: { display: true },
-                            title: { display: true, text: 'Daily Product Engagement Times (Seconds)' },
-                        },
                         scales: {
-                            x: { stacked: true },
-                            y: { stacked: true, beginAtZero: true },
-                        },
-                    },
+                            x: { title: { display: true, text: 'Date' }},
+                            y: { title: { display: true, text: 'Average Engagement Time (seconds)' }, beginAtZero: true }
+                        }
+                    }
                 });
+
+                // Random color generator function
+                function getRandomColor(opacity = 1) {
+                    return `rgba(${Math.floor(Math.random() * 255)}, ${Math.floor(Math.random() * 255)}, ${Math.floor(Math.random() * 255)}, ${opacity})`;
+                }
             })
-            .catch(error => {
-                console.error('Error fetching data:', error);
-                document.getElementById('loadingIndicator').style.display = 'none';
-                document.getElementById('errorMessage').style.display = 'block';
-            });
+            .catch(error => console.error('Error fetching data:', error));
     </script>
 </body>
 </html>
