@@ -23,19 +23,19 @@ def get_data():
 
     # Standardize the 'Timestamp' column
     def parse_timestamp(timestamp):
-    try:
-        # First try parsing with milliseconds (comma-separated)
-        return pd.to_datetime(timestamp, format='%Y-%m-%d %H:%M:%S,%f')
-    except ValueError:
         try:
-            # Second try parsing with milliseconds (dot-separated)
-            return pd.to_datetime(timestamp, format='%Y-%m-%d %H:%M:%S.%f')
+            # First try parsing with milliseconds (comma-separated)
+            return pd.to_datetime(timestamp, format='%Y-%m-%d %H:%M:%S,%f')
         except ValueError:
             try:
-                # Fall back to seconds-only format
-                return pd.to_datetime(timestamp, format='%Y-%m-%d %H:%M:%S')
+                # Second try parsing with milliseconds (dot-separated)
+                return pd.to_datetime(timestamp, format='%Y-%m-%d %H:%M:%S.%f')
             except ValueError:
-                return None  # Return None for invalid formats
+                try:
+                    # Fall back to seconds-only format
+                    return pd.to_datetime(timestamp, format='%Y-%m-%d %H:%M:%S')
+                except ValueError:
+                    return None  # Return None for invalid formats
 
     df['Timestamp'] = df['Timestamp'].apply(parse_timestamp)
 
